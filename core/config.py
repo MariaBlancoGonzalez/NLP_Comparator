@@ -1,5 +1,5 @@
 IMAGE_PATH = './data/imagenesStacked'
-DEVICE = "cuda"
+DEVICE = "cuda:0"
 
 SPANISH_BERT = 'dccuchile/bert-base-spanish-wwm-uncased'
 DEFAULT_BERT = 'bert-base-uncased'
@@ -23,9 +23,9 @@ ARG_FILES_EN = {
     "image_field": "image"
 }
 
-TRAIN = '/home/visilab/Maria/DIAMOND_MULTIMODAL/data/english_data/train.csv'
-TEST = '/home/visilab/Maria/DIAMOND_MULTIMODAL/data/english_data/test.csv'
-VALID = '/home/visilab/Maria/DIAMOND_MULTIMODAL/data/english_data/val.csv'
+TRAIN = './data/english_data/train.csv'
+TEST = './data/english_data/test.csv'
+VALID = './data/english_data/val.csv'
 
 # En ingles
 TRAIN_CSV_EN = './data/english_data/train.csv'
@@ -57,8 +57,8 @@ ARG_TRANFORMER = {
     "weight_decay": 0.01,
 }
 
-NUMBER_EPOCHS = 30
-BATCH_SIZE = 16
+NUMBER_EPOCHS = 10000
+BATCH_SIZE = 24
 
 LANGUAGE_CHOICES = ['sp','en']
 

@@ -1,5 +1,5 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
+
+
 from transformers import BertForSequenceClassification
 from transformers import BertTokenizer
 import torch
@@ -13,14 +13,20 @@ import core.config as config
 from tqdm.auto import trange
 from dataframe import Dataframe
 
+import pandas as pd
+
+SPANISH_BERT = 'dccuchile/bert-base-spanish-wwm-cased'
+DEFAULT_BERT = 'bert-base-cased'
+
 train = pd.read_csv(config.TRAIN, sep=",")
 test = pd.read_csv(config.TEST, sep=",")
 val = pd.read_csv(config.VALID, sep=",")
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
-epochs = 50
+tokenizer = BertTokenizer.from_pretrained(DEFAULT_BERT, num_labels=9)
+epochs = 1000
 
-model = BertForSequenceClassification.from_pretrained('bert-base-cased') # Pre-trained model
+model = BertForSequenceClassification.from_pretrained(DEFAULT_BERT, num_labels=9) # Pre-trained model
+
 optimizer = AdamW(model.parameters(), lr=1e-5) # Optimization function
 loss_fn = torch.nn.CrossEntropyLoss() # Loss function
 
@@ -43,13 +49,17 @@ val_dataloader = DataLoader(val_dataset, sampler=val_sampler, batch_size=16)
 device = "cuda"
 criterion = torch.nn.CrossEntropyLoss()
 
-def flat_accuracy(self, preds, labels):
+def flat_accuracy(preds, labels):
     pred_flat = np.argmax(preds, axis=1).flatten()
     labels_flat = labels.flatten()
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
 stats = []
 
+best_loss = float('inf')
+best_model_weights = None
+patience = 20
+model.to(device)
 for epoch in trange(epochs, desc="Epochs"):
 
     # -------------------- #
@@ -76,7 +86,7 @@ for epoch in trange(epochs, desc="Epochs"):
         outputs = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])
     
 
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs.logits, labels)
         loss.backward()
 
    
@@ -114,12 +124,12 @@ for epoch in trange(epochs, desc="Epochs"):
 
         with torch.no_grad():        
 
-            logits = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])            
-            loss = criterion(logits, labels)
+            outputs = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])            
+            loss = criterion(outputs.logits, labels)
 
         # Accumulate the validation loss.
         total_eval_loss += loss.item()
-        logits = logits.detach().cpu().numpy()
+        logits = outputs.logits.detach().cpu().numpy()
         label_ids = labels.to('cpu').numpy()
 
         total_eval_accuracy += flat_accuracy(logits, label_ids)
@@ -148,6 +158,15 @@ for epoch in trange(epochs, desc="Epochs"):
                     'Valid. Time': validation_time
                     }
                 )
+    # Early stopping
+    if avg_val_loss < best_loss:
+        best_loss = avg_val_loss   
+        patience = 20  # Reset patience counter
+    else:
+        patience -= 1
+        if patience == 0:
+            break
+        
 print("")
 print("Training complete!")
 print(avg_train_loss, avg_val_accuracy)
